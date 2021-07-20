@@ -20,30 +20,28 @@ struct __attribute__((__packed__)) NeuronEvent{
     uint16_t neuron_id;
 };
 class Mask{
-private:
-    uint16_t x_;
-    uint16_t y_;
-    uint16_t w_;
-public:
-    std::vector<uint16_t> min_x_, max_x_, min_y_, max_y_;
-    Mask(){
-        x_=0;y_=0;w_=0;
-    }
-    Mask(uint16_t& x, uint16_t& y, uint16_t& w){
-        x_ = x;
-        y_ = y;
-        uint32_t nb_pix = x_ * y_;
-        uint32_t i, j;
-        min_x_.resize(nb_pix);min_y_.resize(nb_pix);
-        max_x_.resize(nb_pix);max_y_.resize(nb_pix);
-        for(uint32_t k = 0; k < nb_pix; k++){
-            i = k % x_;j = k / x_;
-            min_y_.at(k) = std::max<int32_t>(0, j - w);
-            max_y_.at(k) = std::min<int32_t>(y_, j + w);
-            min_x_.at(k) = std::max<int32_t>(0, i - w);
-            max_x_.at(k) = std::min<int32_t>(x_, i + w);
-        }
-    };
+    private:
+        uint16_t x_;
+        uint16_t y_;
+        uint16_t w_;
+    public:
+        std::vector<uint16_t> min_x_, max_x_, min_y_, max_y_;
+        Mask(){x_=0;y_=0;w_=0;};
+        Mask(uint16_t& x, uint16_t& y, uint16_t& w){
+            x_ = x;
+            y_ = y;
+            uint32_t nb_pix = x_ * y_;
+            uint32_t i, j;
+            min_x_.resize(nb_pix);min_y_.resize(nb_pix);
+            max_x_.resize(nb_pix);max_y_.resize(nb_pix);
+            for(uint32_t k = 0; k < nb_pix; k++){
+                i = k % x_;j = k / x_;
+                min_y_.at(k) = std::max<int32_t>(0, j - w);
+                max_y_.at(k) = std::min<int32_t>(y_, j + w);
+                min_x_.at(k) = std::max<int32_t>(0, i - w);
+                max_x_.at(k) = std::min<int32_t>(x_, i + w);
+            }
+        };
 };
 class ExpLUT{
     private:
@@ -59,13 +57,14 @@ class ExpLUT{
             tau_= tau;
             max_dt_ = 3 * tau_;
             lut_.resize(res_);
-            res_t_ = max_dt_ / (res - 1);
+            res_t_ = max_dt_ / res;
+            max_dt_ = res * res_t_; 
             for(uint16_t i = 0; i < res_; i++){
                 lut_.at(i) = std::exp(- static_cast<float_t>(i * res_t_) / tau);
             }
         }
         float_t getVal(uint64_t dt){
-            return (dt > max_dt_) ? 0 : lut_.at(dt / res_t_);
+            return (dt >= max_dt_) ? 0 : lut_.at(dt / res_t_);
         }
 };
 class FeastNeuron{
@@ -75,9 +74,9 @@ class FeastNeuron{
         uint64_t tau_;     // time constant of the time surface
         float_t th_open_;  // threshold opening if nobody reacts
         float_t th_close_; // threshold closure if neuron selected
-        float_t th_;        //  Current Threshold
+        float_t th_;       //  Current Threshold
         float_t lr_;       // learning rate of the feature
-        float_t ilr_;       // 1-learning rate of the feature
+        float_t ilr_;      // 1-learning rate of the feature
         float_t n2_;       // n2 norm
         std::vector<float_t> weights_; 
     public:
@@ -103,6 +102,7 @@ class FeastNeuron{
             n2_ = 0;
             std::for_each(weights_.begin(), weights_.end(), [&](float_t &v){n2_+=v*v;});
             n2_ = std::sqrt(n2_);
+            std::for_each(weights_.begin(), weights_.end(), [&](float_t &v){v/=n2_;});
         };
         uint16_t getsize(){return (2 * w_ + 1) * (2 * w_ + 1);}
         void match(std::vector<float>& ctx, float_t& res, bool& activated){
@@ -110,7 +110,6 @@ class FeastNeuron{
             for (uint16_t i = 0; i < size_; i++){
                 res += ctx.at(i) * weights_.at(i); 
             }
-            res /= n2_;
             activated = (res < th_) ? 1 : 0;
         }
         void open(){th_ = std::min<float>(th_ + th_open_, 1);}
@@ -122,6 +121,7 @@ class FeastNeuron{
                 n2_ += weights_.at(i) * weights_.at(i);
             }
             n2_ = std::sqrt(n2_);
+            std::for_each(weights_.begin(), weights_.end(), [&](float_t &v){v/=n2_;});
         }
         float_t getWeight(uint16_t p){return weights_.at(p);}
         float_t getTh(){return th_;}
@@ -136,6 +136,7 @@ class FeastLayer{
         uint16_t x_;      // number of rows
         uint16_t y_;      // number of columns
         uint16_t w_;      // half size of the local context
+        uint16_t hw_;     // half size of the ROI
         uint64_t tau_;    // time constant of the time surface
         float_t th_open_; // threshold opening if nobody reacts
         float_t th_close_;// threshold closure if neuron selected
@@ -149,6 +150,7 @@ class FeastLayer{
             x_ = x;
             y_ = y;
             w_ = w;
+            hw_ = 2 * w + 1;
             M_ = Mask(x_, y_, w_);
             tau_ = tau;
             th_open_=th_open;
@@ -157,9 +159,9 @@ class FeastLayer{
             nb_ = nb;
             initNeuron();
             lut_ = ExpLUT(tau_, 1024);
-            ev_ctx_.resize((2*w_+1)*(2*w_+1));
-            match_.resize((2*w_+1)*(2*w_+1));
-            res_.resize((2*w_+1)*(2*w_+1));
+            ev_ctx_.resize(getSizeCtx());
+            match_.resize(getSizeCtx());
+            res_.resize(getSizeCtx());
         };
         void initNeuron(){
             neurons_.reserve(nb_);
@@ -168,8 +170,8 @@ class FeastLayer{
             }
         }
         uint32_t getPos(const uint16_t& x, const uint16_t& y){return y * x_ + x;}
-        uint32_t getPosCtx(const uint16_t& x, const uint16_t& y){return y * w_ + x;}
-        uint16_t getSizeCtx(){return (2 * w_ + 1) * (2 * w_ + 1);}
+        uint32_t getPosCtx(const uint16_t& x, const uint16_t& y){return y * hw_ + x;}
+        uint16_t getSizeCtx(){return hw_ * hw_;}
         void getWeights(std::vector<float_t>& weigths){
             uint16_t s = getSizeCtx();
             weigths.resize(nb_ * s);
@@ -199,8 +201,8 @@ class FeastLayer{
             uint16_t x, y;
             uint32_t pctx, p;
             float sum = 0;
-            for(x = M_.min_x_.at(pos); x < M_.max_x_.at(pos); x++){
-                for(y = M_.min_y_.at(pos); y < M_.max_y_.at(pos); y++){
+            for(x = M_.min_x_.at(pos); x <= M_.max_x_.at(pos); x++){
+                for(y = M_.min_y_.at(pos); y <= M_.max_y_.at(pos); y++){
                     pctx = getPosCtx(x - M_.min_x_.at(pos), y - M_.min_y_.at(pos));
                     p = getPos(x, y);             
                     localCtx.at(pctx) = lut_.getVal(t - timesurface_.at(p));
@@ -229,8 +231,8 @@ class FeastLayer{
             }
         }
         void applyFEAST(uint16_t& id, std::vector<NeuronEvent>& out, std::vector<float_t>& localCtx, std::vector<Event>::iterator& it){
-            if(id == std::numeric_limits<uint16_t>::max())
-                std::for_each(neurons_.begin(), neurons_.end(), [](FeastNeuron &n){n.open();});
+            if( id > nb_)
+                std::for_each(neurons_.begin(), neurons_.end(), [&](FeastNeuron& n){n.open();});
             else{
                 neurons_.at(id).close();
                 neurons_.at(id).learn(localCtx);
