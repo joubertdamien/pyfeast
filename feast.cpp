@@ -66,24 +66,41 @@ PyDoc_STRVAR(
     "w: uint16_t\n"
     "   Half size of the square ROI\n"
     "   Final size: (2*w+1)**2\n"
-    "time_th: uint16_t\n"
-    "   Size of the temporal filtering\n"
-    "ev_th: numpy_array\n"
-    "   Number of events needed in the ROI*time_th volume to pass the filter\n");
+    "tau: uint64_t\n"
+    "   Time decay of the time surface to compute the local context\n"
+    "th_open: float_t\n"
+    "   threshold update when neither neurons reacts\n"
+    "th_close: float_t\n"
+    "   threshold update when a neuron spikes\n"
+    "lr: float_t\n"
+    "   learning rate\n"
+    "uint16_t: float_t\n"
+    "   Number of neurons in the layer\n"
+    );
+
 PyDoc_STRVAR(
     filter_doc,
     "Filter the input buffer of event and returns the ouput events.\n\n"
     "Parameters\n"
     "----------\n"
-    "in: std::vector<Event>\n"
+    "in: Numpy structured array of Event\n"
     "   Input buffer\n"
-    "out: std::vector<Event>\n"
-    "   Output buffer\n");
+    "out: Numpy structured array of NeuronEvent\n"
+    "   Empty buffer. Mainly used to catch the type\n"
+    "Returns\n"
+    "----------\n"
+    "res: Python dictionnary\n"
+    "   res[""ev""] contains a structed array of NeuronEvent\n"
+    );
 PyDoc_STRVAR(
     getNeuronState_doc,
-    "Filter the input buffer of event and returns the ouput events.\n\n"
-    "Parameters\n"
-    "----------\n");
+    "Return the neurons weights and thresholds in a Python dictionnary.\n\n"
+    "Returns\n"
+    "----------\n"
+    "res: Python dictionnary\n"
+    "   res[""weights""] contains the weights\n"
+    "   res[""th""] contains the thresholds\n"
+    );
 static char module_docstring[] = "C++ Feast implementation";
 
 //Module specification
