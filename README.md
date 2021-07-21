@@ -1,9 +1,12 @@
 # pyfeast
 
-C++ FEAST filter embedded in Python, including some visualization tools. 
+C++ FEAST filter embedded in Python, including visualization tools. 
 
-Example: 
-Given the events:
+Performance (i7-10 neurons-10x10 ROI): 0.5 Mev/s. 
+
+Example:
+
+Given the events stacked in a time image:
 
 <img src="imgs/events.png" alt="drawing" width="200"/>
 
@@ -11,7 +14,7 @@ The following features can be extracted:
 
 <img src="imgs/weights.png" alt="drawing" width="200"/>
 
-The activation of the neurons can be monitored:
+The activations of the neurons can be monitored:
 
 <img src="imgs/act.png" alt="drawing" width="200"/>
 
@@ -21,9 +24,22 @@ And the thresholds as well:
 
 ## Documentation
 
-### C++ File documentation 
+### C++ File documentation (feast.hpp):
 
-### Python file documentation
+The class FeastLayer propagates events and their spatiotemporal context into a set of FeastNeuron, and apply a FEAST learning rule. 
+
+The events have to contain (x, y, t) peoperties. This implementation is compatible with [Sepia](https://github.com/neuromorphic-paris/sepia)'s dvs events. 
+
+The filter returns neuron activation events: (t, x, y, idneuron). 
+All structures have to be packed by the compiler to be interfaced with the Python wrapper. 
+
+Compile and test by running the bash script. 
+
+### Python file documentation (feast.cpp):
+
+The Python wrapper relies on events provided as structured arrays, for example using [event stream](https://github.com/neuromorphicsystems/event_stream). 
+
+An example is provided in test_filter_view.py. 
 
 ## Reference
 
