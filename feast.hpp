@@ -100,9 +100,9 @@ class FeastNeuron{
             for(int i = 0; i < size_; i++)
                 weights_.at(i) = distribution(generator);
             n2_ = 0;
-            std::for_each(weights_.begin(), weights_.end(), [&](float_t &v){n2_+=v*v;});
+            std::for_each(weights_.begin(), weights_.end(), [&](float_t &v){n2_ += v*v;});
             n2_ = std::sqrt(n2_);
-            std::for_each(weights_.begin(), weights_.end(), [&](float_t &v){v/=n2_;});
+            std::for_each(weights_.begin(), weights_.end(), [&](float_t &v){v /= n2_;});
         };
         uint16_t getsize(){return (2 * w_ + 1) * (2 * w_ + 1);}
         void match(std::vector<float>& ctx, float_t& res, bool& activated){
@@ -110,10 +110,10 @@ class FeastNeuron{
             for (uint16_t i = 0; i < size_; i++){
                 res += ctx.at(i) * weights_.at(i); 
             }
-            activated = (res < th_) ? 1 : 0;
+            activated = (res > th_) ? 1 : 0;
         }
-        void open(){th_ = std::min<float>(th_ + th_open_, 1);}
-        void close(){th_ = std::max<float>(th_ - th_close_, 0);}
+        void open(){th_ = std::min<float>(th_ - th_open_, 1);}
+        void close(){th_ = std::max<float>(th_ + th_close_, 0);}
         void learn(std::vector<float>& ctx){
             n2_ = 0;
             for (uint16_t i = 0; i < size_; i++){
@@ -192,8 +192,7 @@ class FeastLayer{
                 p = getPos(it->x, it->y);
                 timesurface_.at(p) = it->t;
                 getEventCtx(ev_ctx_, p, it->t);
-                matchEventneuron(ev_ctx_, match_, res_);
-                getResFEAST(match_, res_, id_winner);
+                matchEventneuron(ev_ctx_, match_, res_, id_winner);
                 applyFEAST(id_winner, out, ev_ctx_, it);
             }
         };
@@ -212,20 +211,15 @@ class FeastLayer{
             if(sum > 0)
                 std::for_each(localCtx.begin(), localCtx.end(), [&](float_t &v){v/=sum;});
         };
-        void matchEventneuron(std::vector<float_t>& localCtx, std::vector<bool>& match, std::vector<float_t>& res){
-            bool m; float_t r;
+        void matchEventneuron(std::vector<float_t>& localCtx, std::vector<bool>& match, std::vector<float_t>& res, uint16_t& id){
+            bool m; float_t r, m_r = 0;
+            id = std::numeric_limits<uint16_t>::max();
             for(uint16_t i = 0; i < nb_; i++){
                 neurons_.at(i).match(localCtx, r, m);
                 match.at(i) = m;
                 res.at(i) = r; 
-            }
-        }
-        void getResFEAST(std::vector<bool>& match, std::vector<float_t>& res, uint16_t& id){
-            float_t m_v = 1;
-            id = std::numeric_limits<uint16_t>::max();
-            for(int i = 0; i < nb_; i++){
-                if(res.at(i) < m_v && match_.at(i) == 1){
-                    m_v = res.at(i);
+                if(res.at(i) > m_r && match_.at(i) == 1){
+                    m_r = res.at(i);
                     id = i;
                 }
             }
