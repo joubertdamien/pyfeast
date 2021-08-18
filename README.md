@@ -28,18 +28,40 @@ And the thresholds as well:
 
 The class FeastLayer propagates events and their spatiotemporal context into a set of FeastNeuron, and apply a FEAST learning rule. 
 
-The events have to contain (x, y, t) peoperties. This implementation is compatible with [Sepia](https://github.com/neuromorphic-paris/sepia)'s dvs events. 
+The events have to contain (x, y, t) fields. This implementation is compatible with [Sepia](https://github.com/neuromorphic-paris/sepia)'s DVS events. 
 
-The filter returns neuron activation events: (t, x, y, idneuron). 
+The filter returns a vector of neuron activation events: (t, x, y, idneuron). 
 All structures have to be packed by the compiler to be interfaced with the Python wrapper. 
 
 Compile and test by running the bash script. 
+
+```
+./compile_and_test.sh
+```
 
 ### Python file documentation (feast.cpp):
 
 The Python wrapper relies on events provided as structured arrays, for example using [event stream](https://github.com/neuromorphicsystems/event_stream). 
 
-An example is provided in test_filter_view.py. 
+Several examples are provided, such as test_filter_view.py. 
+
+### Improvements
+
+The FEAST learning rule is sensitive to the background noise. For example, several noise distributions can be simulated using our [simulator](https://github.com/neuromorphicsystems/IEBCS) with different SNR: infinite, -2.5 and 2.5 dB.
+
+<img src="imgs/noiseImp/timesurface.png" alt="drawing" width="300"/>
+
+The Weights and the thresholds learnt by FEAST are affected by this background noise:
+<img src="imgs/noiseImp/weights.png" alt="drawing" width="300"/>
+<img src="imgs/noiseImp/ths.png" alt="drawing" width="300"/>
+
+Simply by changing the closure function of the treshold,, the number of neurons learning the noise can be efficiently decreased:
+
+<img src="imgs/noiseImp/ths_update.png" alt="drawing" width="400"/>
+
+
+<img src="imgs/noiseImp/2.5dB.png" alt="drawing" width="400"/>
+
 
 ## Reference
 
